@@ -3,7 +3,6 @@
 import { useState, useCallback, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { dishes as allDishes, getSteps } from "@/lib/dishes"
-import { getRandomDish } from "@/lib/utils"
 import type { Dish } from "@/types"
 import FloatingEmojis from "@/components/FloatingEmojis"
 import HeroButton from "@/components/HeroButton"
