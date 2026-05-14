@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { dishes as allDishes, getSteps } from "@/lib/dishes"
 import { getRandomDish } from "@/lib/utils"
@@ -9,26 +9,38 @@ import FloatingEmojis from "@/components/FloatingEmojis"
 import HeroButton from "@/components/HeroButton"
 import SlotMachine from "@/components/SlotMachine"
 import StepsList from "@/components/StepsList"
+import EmojiBurst from "@/components/EmojiBurst"
 
 export default function Home() {
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null)
   const [isRolling, setIsRolling] = useState(false)
+  const [showBurst, setShowBurst] = useState(false)
 
   const handleRoll = useCallback(() => {
     setIsRolling(true)
     setSelectedDish(null)
+    setShowBurst(false)
   }, [])
 
   const handleComplete = useCallback((dish: Dish) => {
     setSelectedDish(dish)
     setIsRolling(false)
+    setShowBurst(true)
   }, [])
+
+  useEffect(() => {
+    if (showBurst) {
+      const timer = setTimeout(() => setShowBurst(false), 1500)
+      return () => clearTimeout(timer)
+    }
+  }, [showBurst])
 
   const hasResult = selectedDish && !isRolling
 
   return (
     <div className="relative flex flex-col flex-1 min-h-svh items-center justify-center px-6 overflow-hidden">
       <FloatingEmojis />
+      <EmojiBurst show={showBurst} />
 
       <div className="relative z-10 flex flex-col items-center gap-10 w-full max-w-md">
         {/* header */}
