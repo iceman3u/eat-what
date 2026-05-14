@@ -24,12 +24,12 @@ export default function Home() {
     setIsRolling(false)
   }, [])
 
+  const hasResult = selectedDish && !isRolling
+
   return (
     <div className="relative flex flex-col flex-1 min-h-svh items-center justify-center px-6 overflow-hidden">
-      {/* background decorations */}
       <FloatingEmojis />
 
-      {/* content */}
       <div className="relative z-10 flex flex-col items-center gap-10 w-full max-w-md">
         {/* header */}
         <motion.div
@@ -46,16 +46,18 @@ export default function Home() {
           </p>
         </motion.div>
 
-        {/* slot machine */}
-        <SlotMachine
-          dishes={allDishes}
-          isRolling={isRolling}
-          onComplete={handleComplete}
-        />
+        {/* slot machine — hidden when result is shown */}
+        {!hasResult && (
+          <SlotMachine
+            dishes={allDishes}
+            isRolling={isRolling}
+            onComplete={handleComplete}
+          />
+        )}
 
         {/* result card */}
         <AnimatePresence>
-          {selectedDish && !isRolling && (
+          {hasResult && (
             <motion.div
               initial={{ opacity: 0, y: 30, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -105,7 +107,12 @@ export default function Home() {
         </AnimatePresence>
 
         {/* CTA button */}
-        <HeroButton onClick={handleRoll} isLoading={isRolling} />
+        <HeroButton
+          onClick={handleRoll}
+          isLoading={isRolling}
+          label={hasResult ? "换一个菜品" : "今天吃什么"}
+          emoji={hasResult ? "🔄" : "🍳"}
+        />
       </div>
     </div>
   )

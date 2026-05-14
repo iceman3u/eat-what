@@ -5,9 +5,11 @@ import { motion } from "framer-motion"
 interface HeroButtonProps {
   onClick: () => void
   isLoading: boolean
+  label: string
+  emoji: string
 }
 
-export default function HeroButton({ onClick, isLoading }: HeroButtonProps) {
+export default function HeroButton({ onClick, isLoading, label, emoji }: HeroButtonProps) {
   return (
     <motion.button
       onClick={onClick}
@@ -35,7 +37,7 @@ export default function HeroButton({ onClick, isLoading }: HeroButtonProps) {
       whileTap={{ scale: 0.96 }}
     >
       <span className="relative z-10 flex items-center gap-2">
-        <span>{isLoading ? "正在挑选..." : "今天吃什么"}</span>
+        <span>{isLoading ? "正在挑选..." : label}</span>
         <motion.span
           animate={isLoading ? { rotate: 360 } : { rotate: [0, 10, -10, 0] }}
           transition={
@@ -45,7 +47,7 @@ export default function HeroButton({ onClick, isLoading }: HeroButtonProps) {
           }
           className="inline-block text-2xl"
         >
-          {isLoading ? "🌀" : "🍳"}
+          {isLoading ? "🌀" : emoji}
         </motion.span>
       </span>
     </motion.button>

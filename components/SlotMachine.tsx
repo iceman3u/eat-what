@@ -99,8 +99,6 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
           </AnimatePresence>
         </div>
 
-        {/* glow line at top */}
-        <div className="absolute top-1/2 left-2 right-2 h-px bg-gradient-to-r from-transparent via-orange-300/40 to-transparent z-10" />
       </div>
     </div>
   )
