@@ -26,9 +26,20 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
   const targetYRef = useRef(0)
   const autoStopRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef(0)
+  const phaseRef = useRef(phase)
+
+  // keep phaseRef in sync
+  phaseRef.current = phase
 
   const reel = buildReel(dishes)
   const singleSetHeight = dishes.length * ITEM_HEIGHT
+
+  // stable stop handler via ref — avoids stale closure / re-render race
+  const triggerStop = useCallback(() => {
+    if (phaseRef.current === "rolling") {
+      setPhase("stopping")
+    }
+  }, [])
 
   // start rolling
   useEffect(() => {
@@ -49,7 +60,6 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
     const animate = () => {
       setReelY((prev) => {
         const next = prev - speedRef.current
-        // wrap around to prevent infinite negative values
         return next <= -singleSetHeight ? next + singleSetHeight : next
       })
       animFrameRef.current = requestAnimationFrame(animate)
@@ -61,7 +71,7 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
       if (autoStopRef.current) clearTimeout(autoStopRef.current)
     }
-  }, [isRolling, singleSetHeight])
+  }, [isRolling, singleSetHeight, triggerStop])
 
   // stopping phase — animate deceleration
   useEffect(() => {
@@ -69,14 +79,11 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
 
     if (autoStopRef.current) clearTimeout(autoStopRef.current)
 
-    // pick target dish
     const pick = dishes[Math.floor(Math.random() * dishes.length)]
     targetDishRef.current = pick
 
-    // find a y position within the middle set that centers the target
     const indexInSet = dishes.findIndex((d) => d.id === pick.id)
     const targetY = -(singleSetHeight + indexInSet * ITEM_HEIGHT) + ITEM_HEIGHT * 2
-
     targetYRef.current = targetY
 
     let currentSpeed = speedRef.current
@@ -86,7 +93,6 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
         const next = prev - currentSpeed
         const distToTarget = targetY - next
         if (Math.abs(distToTarget) < 2 && currentSpeed < 0.5) {
-          // snap to target and complete
           setTimeout(() => {
             setPhase("done")
             setDisplayDish(pick)
@@ -107,12 +113,6 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
     }
   }, [phase, dishes, singleSetHeight, onComplete])
 
-  const triggerStop = useCallback(() => {
-    if (phase === "rolling") {
-      setPhase("stopping")
-    }
-  }, [phase])
-
   // reset when idle
   useEffect(() => {
     if (!isRolling && phase === "idle") {
@@ -132,9 +132,9 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
       <motion.div
         className="relative w-full overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm
                    shadow-[inset_0_2px_12px_rgba(0,0,0,0.04),0_4px_24px_rgba(0,0,0,0.06)]
-                   border border-orange-100 cursor-pointer"
-        style={{ height: ITEM_HEIGHT * 3 }}
-        onClick={triggerStop}
+                   border border-orange-100 cursor-pointer select-none"
+        style={{ height: ITEM_HEIGHT * 3, touchAction: "manipulation" }}
+        onPointerDown={triggerStop}
         animate={
           phase === "rolling"
             ? { boxShadow: "inset 0 2px 12px rgba(0,0,0,0.04), 0 4px 24px rgba(0,0,0,0.06), 0 0 0 2px rgba(251,146,60,0.2)" }
