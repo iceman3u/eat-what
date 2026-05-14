@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import type { Dish } from "@/types"
 
@@ -11,120 +11,110 @@ interface SlotMachineProps {
 }
 
 const ITEM_HEIGHT = 56
+const VISIBLE = 3
 
 function buildReel(dishes: Dish[]): Dish[] {
   return [...dishes, ...dishes, ...dishes]
 }
 
 export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachineProps) {
-  const [phase, setPhase] = useState<"idle" | "rolling" | "stopping" | "done">("idle")
   const [reelY, setReelY] = useState(0)
-  const [displayDish, setDisplayDish] = useState<Dish | null>(null)
-  const animFrameRef = useRef<number | null>(null)
-  const speedRef = useRef(0)
-  const targetDishRef = useRef<Dish | null>(null)
-  const targetYRef = useRef(0)
-  const autoStopRef = useRef<NodeJS.Timeout | null>(null)
-  const startTimeRef = useRef(0)
-  const phaseRef = useRef(phase)
+  const [rolling, setRolling] = useState(false)
+  const [revealDish, setRevealDish] = useState<Dish | null>(null)
 
-  // keep phaseRef in sync
-  phaseRef.current = phase
+  // all mutable runner state lives in refs — no stale closure
+  const state = useRef({
+    speed: 12,
+    timer: null as ReturnType<typeof setInterval> | null,
+    autoStop: null as ReturnType<typeof setTimeout> | null,
+    stopping: false,
+    targetY: 0,
+    targetDish: null as Dish | null,
+  })
 
   const reel = buildReel(dishes)
-  const singleSetHeight = dishes.length * ITEM_HEIGHT
+  const singleHeight = dishes.length * ITEM_HEIGHT
 
-  // stable stop handler via ref — avoids stale closure / re-render race
-  const triggerStop = useCallback(() => {
-    if (phaseRef.current === "rolling") {
-      setPhase("stopping")
-    }
-  }, [])
+  // stop handler — reads from ref, always current
+  const stop = () => {
+    if (state.current.stopping) return
+    state.current.stopping = true
 
-  // start rolling
-  useEffect(() => {
-    if (!isRolling) return
-
-    setPhase("rolling")
-    setDisplayDish(null)
-    speedRef.current = 12
-    startTimeRef.current = Date.now()
-    targetDishRef.current = null
-
-    // auto-stop after 3-5 seconds
-    const autoDelay = 3000 + Math.random() * 2000
-    autoStopRef.current = setTimeout(() => {
-      triggerStop()
-    }, autoDelay)
-
-    const animate = () => {
-      setReelY((prev) => {
-        const next = prev - speedRef.current
-        return next <= -singleSetHeight ? next + singleSetHeight : next
-      })
-      animFrameRef.current = requestAnimationFrame(animate)
+    if (state.current.autoStop) {
+      clearTimeout(state.current.autoStop)
+      state.current.autoStop = null
     }
 
-    animFrameRef.current = requestAnimationFrame(animate)
-
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
-      if (autoStopRef.current) clearTimeout(autoStopRef.current)
-    }
-  }, [isRolling, singleSetHeight, triggerStop])
-
-  // stopping phase — animate deceleration
-  useEffect(() => {
-    if (phase !== "stopping") return
-
-    if (autoStopRef.current) clearTimeout(autoStopRef.current)
-
+    // pick target
     const pick = dishes[Math.floor(Math.random() * dishes.length)]
-    targetDishRef.current = pick
+    state.current.targetDish = pick
+    const idx = dishes.findIndex((d) => d.id === pick.id)
+    state.current.targetY = -(singleHeight + idx * ITEM_HEIGHT) + ITEM_HEIGHT * 2
 
-    const indexInSet = dishes.findIndex((d) => d.id === pick.id)
-    const targetY = -(singleSetHeight + indexInSet * ITEM_HEIGHT) + ITEM_HEIGHT * 2
-    targetYRef.current = targetY
+    // switch to deceleration phase — slower interval
+    if (state.current.timer) clearInterval(state.current.timer)
 
-    let currentSpeed = speedRef.current
-    const decelerate = () => {
-      currentSpeed *= 0.92
+    state.current.timer = setInterval(() => {
+      state.current.speed *= 0.9
+      if (state.current.speed < 0.3) {
+        // done
+        if (state.current.timer) clearInterval(state.current.timer)
+        state.current.timer = null
+        setReelY(state.current.targetY)
+        setTimeout(() => {
+          setRolling(false)
+          setRevealDish(pick)
+          onComplete(pick)
+        }, 100)
+        return
+      }
       setReelY((prev) => {
-        const next = prev - currentSpeed
-        const distToTarget = targetY - next
-        if (Math.abs(distToTarget) < 2 && currentSpeed < 0.5) {
-          setTimeout(() => {
-            setPhase("done")
-            setDisplayDish(pick)
-            onComplete(pick)
-          }, 150)
-          return targetY
+        const next = prev - state.current.speed
+        const dist = Math.abs(state.current.targetY - next)
+        if (dist < 4) {
+          return state.current.targetY
         }
-        animFrameRef.current = requestAnimationFrame(decelerate)
-        if (next <= -singleSetHeight * 2) return next + singleSetHeight
+        if (next <= -singleHeight * 2) return next + singleHeight
         return next
       })
+    }, 32)
+  }
+
+  // start / reset
+  useEffect(() => {
+    if (!isRolling) {
+      // reset to idle
+      setRolling(false)
+      setRevealDish(null)
+      setReelY(0)
+      if (state.current.timer) clearInterval(state.current.timer)
+      if (state.current.autoStop) clearTimeout(state.current.autoStop)
+      state.current = { speed: 12, timer: null, autoStop: null, stopping: false, targetY: 0, targetDish: null }
+      return
     }
 
-    animFrameRef.current = requestAnimationFrame(decelerate)
+    // start rolling
+    setRolling(true)
+    setRevealDish(null)
+    state.current.speed = 12
+    state.current.stopping = false
+
+    // auto-stop 3-5s
+    state.current.autoStop = setTimeout(stop, 3000 + Math.random() * 2000)
+
+    // rolling interval
+    state.current.timer = setInterval(() => {
+      setReelY((prev) => {
+        const next = prev - state.current.speed
+        return next <= -singleHeight ? next + singleHeight : next
+      })
+    }, 32)
 
     return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+      if (state.current.timer) clearInterval(state.current.timer)
+      if (state.current.autoStop) clearTimeout(state.current.autoStop)
     }
-  }, [phase, dishes, singleSetHeight, onComplete])
-
-  // reset when idle
-  useEffect(() => {
-    if (!isRolling && phase === "idle") {
-      setDisplayDish(null)
-      setReelY(0)
-    }
-  }, [isRolling, phase])
-
-  const centerIndex = () => {
-    const raw = Math.round((-reelY + ITEM_HEIGHT * 2) / ITEM_HEIGHT) % reel.length
-    return raw < 0 ? raw + reel.length : raw
-  }
+  }, [isRolling, singleHeight])
 
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-xs mx-auto">
@@ -132,21 +122,19 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
       <motion.div
         className="relative w-full overflow-hidden rounded-2xl bg-white/80 backdrop-blur-sm
                    shadow-[inset_0_2px_12px_rgba(0,0,0,0.04),0_4px_24px_rgba(0,0,0,0.06)]
-                   border border-orange-100 cursor-pointer select-none"
-        style={{ height: ITEM_HEIGHT * 3, touchAction: "manipulation" }}
-        onPointerDown={triggerStop}
+                   border border-orange-100 select-none"
+        style={{ height: ITEM_HEIGHT * VISIBLE, touchAction: "manipulation" }}
+        onPointerDown={stop}
         animate={
-          phase === "rolling"
+          rolling && !state.current.stopping
             ? { boxShadow: "inset 0 2px 12px rgba(0,0,0,0.04), 0 4px 24px rgba(0,0,0,0.06), 0 0 0 2px rgba(251,146,60,0.2)" }
             : { boxShadow: "inset 0 2px 12px rgba(0,0,0,0.04), 0 4px 24px rgba(0,0,0,0.06)" }
         }
-        transition={{ duration: 0.6 }}
       >
         {/* top mask */}
         <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-white/95 via-white/70 to-transparent z-20 pointer-events-none" />
         {/* bottom mask */}
         <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white/95 via-white/70 to-transparent z-20 pointer-events-none" />
-
         {/* center highlight */}
         <div className="absolute top-1/2 left-1 right-1 -translate-y-1/2 h-14 rounded-xl bg-orange-100/40 z-0 pointer-events-none" />
 
@@ -166,7 +154,7 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
 
         {/* stop hint */}
         <AnimatePresence>
-          {phase === "rolling" && (
+          {rolling && !state.current.stopping && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -182,7 +170,7 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
       </motion.div>
 
       {/* idle prompt */}
-      {phase === "idle" && (
+      {!isRolling && !revealDish && (
         <p className="text-sm text-orange-300 font-medium">点击下方按钮开始</p>
       )}
     </div>
