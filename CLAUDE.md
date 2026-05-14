@@ -47,3 +47,16 @@
 - 交互状态: animate (常态)、whileHover、whileTap
 - 卡片圆角: rounded-2xl 或 rounded-3xl
 - 阴影: 柔和暖色 shadow, 不使用 harsh shadow
+
+## Agent Team
+
+项目使用多角色 Agent 团队协作开发，团队定义见 `.claude/team.md`。
+
+角色分工：
+- **Product** — 需求分析、验收、优先级
+- **Designer** — 视觉规范、动画、样式审查
+- **Frontend** — React 组件、页面、交互
+- **Backend** — API、Prisma、数据库
+- **QA** — 测试、验收、bug 报告
+
+Team Leader (Claude) 负责任务拆分、调度、代码审查、最终合并。成员不直接对话，统一通过 Team Leader 中转。
