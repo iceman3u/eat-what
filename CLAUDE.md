@@ -50,7 +50,7 @@
 
 ## Agent Team
 
-项目使用多角色 Agent 团队协作开发，团队定义见 `.claude/team.md`。
+项目使用多角色 Agent 团队协作开发，团队定义见 `.claude/team.md`，角色卡片见 `.claude/roles/`。
 
 角色分工：
 - **Product** — 需求分析、验收、优先级
@@ -59,14 +59,11 @@
 - **Backend** — API、Prisma、数据库
 - **QA** — 测试、验收、bug 报告
 
-Team Leader (Claude) 负责任务拆分、调度、代码审查、最终合并。成员不直接对话，统一通过 Team Leader 中转。
+Team Leader (Claude) 是用户唯一的交互对象。职责：
+- 理解用户意图，自动判断需要哪些角色参与
+- 拆解任务，决定串行还是并行调度
+- 审核成员产出，修改或要求返工
+- 最终落地代码，提交推送
+- **用户不需要指定角色或调度方式** — Team Leader 全权负责
 
-### 如何调度
-
-用 Agent 工具调度成员，prompt 中必须包含：
-1. 角色身份声明（"你是 EatWhat 项目的 XXX"）
-2. 关键约束（从 `.claude/roles/<role>.md` 提取 2-3 条最相关的禁止项）
-3. 任务描述 + 输出格式要求
-4. 需要读取的文件路径清单
-
-详见 `.claude/team.md` 和各角色卡片。
+成员之间不直接对话，统一通过 Team Leader 中转。
