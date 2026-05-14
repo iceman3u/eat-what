@@ -60,3 +60,13 @@
 - **QA** — 测试、验收、bug 报告
 
 Team Leader (Claude) 负责任务拆分、调度、代码审查、最终合并。成员不直接对话，统一通过 Team Leader 中转。
+
+### 如何调度
+
+用 Agent 工具调度成员，prompt 中必须包含：
+1. 角色身份声明（"你是 EatWhat 项目的 XXX"）
+2. 关键约束（从 `.claude/roles/<role>.md` 提取 2-3 条最相关的禁止项）
+3. 任务描述 + 输出格式要求
+4. 需要读取的文件路径清单
+
+详见 `.claude/team.md` 和各角色卡片。
