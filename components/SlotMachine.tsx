@@ -12,6 +12,7 @@ interface SlotMachineProps {
 
 const ITEM_HEIGHT = 56
 const VISIBLE = 3
+const STOP_BASE = 30
 
 function buildReel(dishes: Dish[]): Dish[] {
   return [...dishes, ...dishes, ...dishes]
@@ -30,6 +31,9 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
     phase: "idle" as Phase,
     targetY: 0,
     targetDish: null as Dish | null,
+    stopStartY: 0,
+    stopDuration: 0,
+    stopFrame: 0,
   })
 
   const rafRef = useRef<number | null>(null)
@@ -49,14 +53,12 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
     }
 
     if (s.phase === "stopping") {
-      s.speed *= 0.92
-      s.reelY -= s.speed
-      if (s.reelY <= -singleHeight * 2) s.reelY += singleHeight
+      s.stopFrame++
+      const t = Math.min(s.stopFrame / s.stopDuration, 1)
+      const eased = 1 - Math.pow(1 - t, 3) // easeOutCubic
+      s.reelY = s.stopStartY + (s.targetY - s.stopStartY) * eased
 
-      const dist = Math.abs(s.targetY - s.reelY)
-
-      if (s.speed < 0.3 && dist < 3) {
-        // snap and complete
+      if (t >= 1) {
         s.reelY = s.targetY
         s.phase = "done"
         setReelY(s.targetY)
@@ -64,7 +66,6 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
         setPhase("done")
         setRevealDish(s.targetDish!)
         onComplete(s.targetDish!)
-        rafRef.current = requestAnimationFrame(loop)
         return
       }
 
@@ -74,7 +75,7 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
     rafRef.current = requestAnimationFrame(loop)
   }
 
-  // stop — just flips the flag, loop handles the rest
+  // stop — records current position, sets target, loop handles the rest
   const stop = () => {
     if (state.current.phase !== "rolling") return
     state.current.phase = "stopping"
@@ -85,7 +86,15 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
     const pick = dishes[Math.floor(Math.random() * dishes.length)]
     state.current.targetDish = pick
     const idx = dishes.findIndex((d) => d.id === pick.id)
-    state.current.targetY = -(singleHeight + idx * ITEM_HEIGHT) + ITEM_HEIGHT
+    let targetY = -(singleHeight + idx * ITEM_HEIGHT) + ITEM_HEIGHT
+
+    // ensure target is forward (more negative) from current position
+    while (targetY > state.current.reelY) targetY -= singleHeight
+
+    state.current.targetY = targetY
+    state.current.stopStartY = state.current.reelY
+    state.current.stopFrame = 0
+    state.current.stopDuration = Math.floor(Math.abs(targetY - state.current.stopStartY) / 10) + STOP_BASE
   }
 
   // start / reset
@@ -93,7 +102,7 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
     if (!isRolling) {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       if (autoStopRef.current) clearTimeout(autoStopRef.current)
-      state.current = { reelY: 0, speed: 12, phase: "idle", targetY: 0, targetDish: null }
+      state.current = { reelY: 0, speed: 12, phase: "idle", targetY: 0, targetDish: null, stopStartY: 0, stopDuration: 0, stopFrame: 0 }
       setPhase("idle")
       setRevealDish(null)
       setReelY(0)
@@ -101,7 +110,7 @@ export default function SlotMachine({ dishes, isRolling, onComplete }: SlotMachi
     }
 
     // start
-    state.current = { reelY: 0, speed: 12, phase: "rolling", targetY: 0, targetDish: null }
+    state.current = { reelY: 0, speed: 12, phase: "rolling", targetY: 0, targetDish: null, stopStartY: 0, stopDuration: 0, stopFrame: 0 }
     setPhase("rolling")
     setRevealDish(null)
     setReelY(0)
