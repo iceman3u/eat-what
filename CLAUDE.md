@@ -1,5 +1,7 @@
 # CLAUDE.md - EatWhat 项目规则
 
+> 📍 当前进度见 [.claude/progress.md](.claude/progress.md)，每次会话结束前更新。
+
 ## 项目概要
 
 《吃什么》是一款 AI-native 美食决策 H5 应用，帮助用户快速决定今天吃什么。
