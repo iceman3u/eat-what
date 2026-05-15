@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Dish {
+  id         String @id
+  name       String
+  emoji      String
+  image      String
+  difficulty String
+  timeMin    Int
+  calories   Int
+  price      Int
+  category   String
+  steps      Step[]
+}
+
+model Step {
+  id         String @id
+  dishId     String
+  stepNumber Int
+  content    String
+  dish       Dish   @relation(fields: [dishId], references: [id])
+}
